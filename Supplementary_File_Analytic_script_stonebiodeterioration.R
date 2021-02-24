@@ -82,6 +82,15 @@ library(spaa)
 t_otu <- t(otu_bac)
 niche_breadth <- niche.width(t_otu, method = "levins")
 
+t_otu_binary<-t_otu
+t_otu_binary[t_otu_binary!=0]<-1
+B_value_niche<-t_otu_binary
+for (i in 1:dim(t_otu)[1]) { ###
+  B_value_niche[i,]<- as.vector(as.matrix(B_value_niche[i,]))*as.vector(as.matrix(niche.width(t_otu,method="levins")))
+}
+rowMeans(B_value_niche,na.rm = T) ##Community level niche breadth (Bcom)
+
+
 ####Community level niche overlap (Ocom)
 niche.overlap.comm <- function (otu_table, method = "morisita") {
   t_otu <- t(otu_table)
