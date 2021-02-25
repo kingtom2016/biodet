@@ -59,7 +59,7 @@ for (i in 1:dim(metadata_my)[1]) {
   b <- metadata_my[metadata_my$SourceSink == "Source", ]
   b[, 3] <- i
   a <- rbind(a, b)
-  a$Env <- paste0("sample", 1)###这个没用，只是一定要有一列
+  a$Env <- paste0("sample", 1)###è¿ä¸ªæ²¡ç¨ï¼åªæ¯ä¸å®è¦æä¸å
   metadata_new <- rbind(metadata_new, a)
   
   FEAST_output1 <-
@@ -190,16 +190,17 @@ plot(results) + theme_bw()
   
   
   
-###network robustness evaluation
+###network robustness evaluation 
+  #random attack could be repeated for some times and combined
   
   adj_matrix<-as_adjacency_matrix(igraph)
   
   nc <- function(adj_matrix) {
-    #  0-1 matrix, 1 represent existence of edge，0 represent nonexistence
+    #  0-1 matrix, 1 represent existence of edgeï¼0 represent nonexistence
     adj_matrix <- as.matrix(adj_matrix)
     adj_matrix[abs(adj_matrix) != 0] <- 1
     
-    # λ
+    # Î»
     lambda <- eigen(adj_matrix, only.values = TRUE)$values
     lambda <- sort(lambda, decreasing = TRUE)
     
