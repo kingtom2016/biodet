@@ -45,36 +45,6 @@ rarecurve_mine <- function(otu, step = 10, sample = 400) {
 
 
 
-####FEAST
-
-library(FEAST)
-metadata_my <- metadata
-
-FEAST_output <- data.frame(stringsAsFactors = F)
-for (i in 1:dim(metadata_my)[1]) {
-  metadata_new <- data.frame(stringsAsFactors = F)
-  a <- (metadata_my[metadata_my$SourceSink == "Sink", ][i, ])
-  a[, 3] <- i
-  
-  b <- metadata_my[metadata_my$SourceSink == "Source", ]
-  b[, 3] <- i
-  a <- rbind(a, b)
-  a$Env <- paste0("sample", 1)###è¿ä¸ªæ²¡ç¨ï¼åªæ¯ä¸å®è¦æä¸å
-  metadata_new <- rbind(metadata_new, a)
-  
-  FEAST_output1 <-
-    FEAST(
-      C = t(as.matrix(otu_animal)),
-      metadata = metadata_new,
-      different_sources_flag = 1,
-      dir_path = getwd(),
-      outfile = "demo"
-    )
-  FEAST_output <- rbind(FEAST_output, FEAST_output1)
-}
-
-FEAST_output$sample <- str_sub(rownames(FEAST_output), , -9)
-
 
 
 ### niche breadth and niche overlap
