@@ -48,27 +48,30 @@ rarecurve_mine <- function(otu, step = 10, sample = 400) {
 
 
 ### niche breadth and niche overlap
-library(spaa)
-t_otu <- t(otu_bac)
-niche_breadth <- niche.width(t_otu, method = "levins")
-
-t_otu_binary<-t_otu
-t_otu_binary[t_otu_binary!=0]<-1
-B_value_niche<-t_otu_binary
-for (i in 1:dim(t_otu)[1]) { ###
-  B_value_niche[i,]<- as.vector(as.matrix(B_value_niche[i,]))*as.vector(as.matrix(niche.width(t_otu,method="levins")))
+Bcom <- function(otu_table) {
+  ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
+  ##doi.org/10.1016/j.scitotenv.2021.150395
+  ##otu_table, row as species, col as community
+  library(spaa)
+  otu_binary <- otu
+  otu_binary[otu_binary > 0] <- 1
+  otu_niche_breadth <- niche.width(t(otu), "levins")
+  otu_binary <- otu_binary * as.numeric(otu_niche_breadth)
+  return(colMeans(otu_binary, na.rm = T))
 }
-rowMeans(B_value_niche,na.rm = T) ##Community level niche breadth (Bcom)
-
 
 ####Community level niche overlap (Ocom)
-niche.overlap.comm <- function (otu_table, method = "morisita") {
+Ocom <- function (otu_table, method = "morisita") {
+  ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
+  ##doi.org/10.1016/j.scitotenv.2021.150395
+  ##otu_table, row as species, col as community
+  library(spaa)
   t_otu <- t(otu_table)
   a <- as.matrix(niche.overlap(t_otu, method = method))
   overlap_list <- list()
   
   for (i in 1:dim(t_otu)[1]) {
-    p <- combn(colnames(t_otu)[t_otu[i, ] != 0], 2)
+    p <- combn(colnames(t_otu)[t_otu[i,] != 0], 2)
     overlap <- vector()
     for (j in 1:dim(p)[2]) {
       overlap[j] <- a[p[1, j], p[2, j]]
@@ -76,7 +79,14 @@ niche.overlap.comm <- function (otu_table, method = "morisita") {
     overlap_list[[i]] <- overlap
     print(i)
   }
+  
+  niche_over <- vector()
+  for (i in 1:dim(t_otu)[1]) {
+    niche_over[i] <- (mean(overlap_list[[i]]))
+  }
+  return(niche_over)
 }
+
 
 
 
