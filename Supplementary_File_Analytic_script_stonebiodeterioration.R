@@ -48,45 +48,107 @@ rarecurve_mine <- function(otu, step = 10, sample = 400) {
 
 
 ### niche breadth and niche overlap
-Bcom <- function(otu_table) {
+Bcom<-function(otu, filter=2e-5){
   ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
   ##doi.org/10.1016/j.scitotenv.2021.150395
   ##otu_table, row as species, col as community
-  library(spaa)
-  otu_binary <- otu
+  t_otu<-t(otu)
+  t_otu<-t_otu[,colSums(t_otu / (rowSums(t_otu))) > filter]
+  otu_niche_breadth <- spaa::niche.width(t_otu, "levins")
+  otu_binary <- t(t_otu)
   otu_binary[otu_binary > 0] <- 1
-  otu_niche_breadth <- niche.width(t(otu), "levins")
   otu_binary <- otu_binary * as.numeric(otu_niche_breadth)
   return(colMeans(otu_binary, na.rm = T))
 }
+niche.overlap.noparal<-function (t_otu) {
+  mat<-t_otu
+  match.arg(method)
+  mat <- na.omit(mat)
+  result <- matrix(0, as.numeric(ncol(mat)) , as.numeric(ncol(mat)))
 
-####Community level niche overlap (Ocom)
-Ocom <- function (otu_table, method = "morisita") {
-  ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
-  ##doi.org/10.1016/j.scitotenv.2021.150395
-  ##otu_table, row as species, col as community
-  library(spaa)
-  t_otu <- t(otu_table)
-  a <- as.matrix(niche.overlap(t_otu, method = method))
-  overlap_list <- list()
-  
-  for (i in 1:dim(t_otu)[1]) {
-    p <- combn(colnames(t_otu)[t_otu[i,] != 0], 2)
-    overlap <- vector()
-    for (j in 1:dim(p)[2]) {
-      overlap[j] <- a[p[1, j], p[2, j]]
+  for (i in 1:(ncol(mat) - 1)) {
+    for (j in (i + 1):ncol(mat)) {
+                  result[j, i] <- spaa::niche.overlap.pair(mat[,i], mat[, j], method = "morisita")
     }
-    overlap_list[[i]] <- overlap
-    print(i)
   }
-  
-  niche_over <- vector()
-  for (i in 1:dim(t_otu)[1]) {
-    niche_over[i] <- (mean(overlap_list[[i]]))
-  }
-  return(niche_over)
+  rownames(result) <- colnames(mat)
+  colnames(result) <- colnames(mat)
+  return(result)
 }
 
+niche.overlap.paral<-function(t_otu_table, cores=12){ 
+  t_otu_table <- na.omit(t_otu_table)
+  otu_number<-dim(t_otu_table)[2]
+  
+  library("foreach")
+  library("doParallel")
+  cl <- makeCluster(cores)
+  registerDoParallel(cl)    #进行进程注册
+  niche_overlap_matrix <- foreach(i = 1:(otu_number - 1),
+                                  #输入等待请求的参数
+                                  .combine = rbind,
+                                  .verbose = F) %dopar% {
+                                    mat <- (matrix(ncol = 3, nrow = otu_number))  # construct first, add element then 1.9s
+                                    colnames(mat) <- c("i", "j", "value")
+                                    print(i)
+                                    for (j in (i + 1):otu_number) {
+                                      mat[j, ] <-
+                                        c(i,
+                                          j,
+                                          spaa::niche.overlap.pair(t_otu_table[, i], t_otu_table[, j], method = "morisita"))
+                                    }
+                                    
+                                    mat <- mat[!is.na(mat[, 3]), ]
+                                    # for (j in 1:i ){
+                                    #   mat[j,]<-c(i,j,  0) ## provide
+                                    # }
+                                    if (i != (otu_number - 1)) {
+                                      mat <- as.data.frame(mat)
+                                    } else {
+                                      mat <- as.data.frame(t(mat))
+                                    }
+                                    
+                                    mat[, 1:2] <- apply(mat[, 1:2], 2, as.integer)
+                                    gc()
+                                    return(mat)
+                                  }
+  gc()
+  stopCluster(cl)
+  niche_overlap_matrix<-Matrix::sparseMatrix(i = niche_overlap_matrix[, 2], j = niche_overlap_matrix[, 1], x =
+                                                 niche_overlap_matrix[, 3] , triangular = T)
+  rownames(niche_overlap_matrix) <- colnames(t_otu_table)
+  colnames(niche_overlap_matrix) <- colnames(t_otu_table)
+  gc()
+  return(niche_overlap_matrix)
+}
+
+Ocom<-function (otu_table, method = "morisita",filter=2e-5, paral=T, cores=12) { #dist_matrix=NULL, get_matrix=F, 
+  ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
+  ##doi.org/10.1016/j.scitotenv.2021.150395
+  ##otu_table, row as species, col as community  
+  t_otu <- t(otu_table)
+  t_otu <- t_otu[, colSums(t_otu / (rowSums(t_otu))) > filter]
+  
+  if (paral) {
+    niche_overlap_matrix <- niche.overlap.paral(t_otu, cores = cores)
+    gc()
+  } else {
+    niche_overlap_matrix <- niche.overlap.noparal(t_otu)
+  }
+  print("niche_overlap_matrix calculation complete")
+
+  overlap_list <- list()
+  niche_over <- vector()
+  for (i in 1:dim(t_otu)[1]) {
+    # print(i) #######the number of calculated samples
+    tmp <-
+      niche_overlap_matrix[as.vector(t_otu[i, ] != 0), as.vector(t_otu[i, ] != 0)]
+    overlap_list[[i]] <- tmp[lower.tri(tmp)]
+    niche_over[i] <- mean(overlap_list[[i]])
+  }
+  names(niche_over) <- rownames(t_otu)
+  return(niche_over)
+}
 
 
 
