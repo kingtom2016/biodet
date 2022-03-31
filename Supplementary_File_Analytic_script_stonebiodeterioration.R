@@ -127,7 +127,7 @@ Ocom<-function (otu_table, method = "morisita",filter=2e-5, paral=T, cores=12) {
   ##doi.org/10.1016/j.scitotenv.2021.150395
   ##otu_table, row as species, col as community  
   t_otu <- t(otu_table)
-  t_otu <- t_otu[, colSums(t_otu / (rowSums(t_otu))) > filter]
+  t_otu <- t_otu[, colMeans(t_otu / (rowSums(t_otu))) > filter]
   
   if (paral) {
     niche_overlap_matrix <- niche.overlap.paral(t_otu, cores = cores)
