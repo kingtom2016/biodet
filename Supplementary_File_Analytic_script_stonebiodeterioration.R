@@ -52,8 +52,8 @@ Bcom<-function(otu, filter=2e-5){
   ##as described in From surviving to thriving, the assembly processes of microbial communities in stone biodeterioration: A case study of the West Lake UNESCO World Heritage area in China
   ##doi.org/10.1016/j.scitotenv.2021.150395
   ##otu_table, row as species, col as community
-  t_otu<-t(otu)
-  t_otu<-t_otu[,colSums(t_otu / (rowSums(t_otu))) > filter]
+  t_otu <- t(otu)
+  t_otu <- t_otu[, colMeans(t_otu / (rowSums(t_otu))) > filter]
   otu_niche_breadth <- spaa::niche.width(t_otu, "levins")
   otu_binary <- t(t_otu)
   otu_binary[otu_binary > 0] <- 1
